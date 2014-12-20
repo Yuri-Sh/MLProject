@@ -1,0 +1,250 @@
+---
+title: "Machine Learning Project"
+author: "Yuri-Sh"
+date: "Wednesday, December 17, 2014"
+output: html_document
+---
+
+
+```{r Convenience functions}
+
+xprint<-function(x,...) print(xtable(x),type="html")
+
+```
+
+```{r "Checking prerequisites", results='hide',echo=FALSE}
+
+# Since this study relies upon certain R packages, the missing packages will be 
+# automatically installed from the default repository (this is the [reference](http://stackoverflow.com/questions/4090169/elegant-way-to-check-for-missing-packages-and-install-them) to the explanation of the trick).
+
+list.of.packages <- list("data.table", 
+                         "lubridate","ggplot2","grid","gridExtra","scales",
+                         "xtable","dplyr","tidyr","corrplot", "caret",
+                         "randomForest","kernlab","dplyr")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) suppressPackageStartupMessages(install.packages(new.packages))
+librarystr <- function(libname) { 
+    invisible(suppressPackageStartupMessages(
+        eval(parse(text=sprintf("library(%s,quietly = FALSE,verbose=FALSE)",libname))))) }
+invisible(lapply(list.of.packages,librarystr))
+
+```
+
+
+For the safety purposes, e.g. missing the source datasource activity.zip or in case the script runs in a wrong 
+directory, there is a code which can download the zip file from the original site.
+
+```{r Load and preprocess,echo=FALSE, results='hide', warning=FALSE}
+downloadIfNeeded <- function(theurl) {
+    s <- tail(strsplit(theurl,"/")[[1]],1)
+    if ( !file.exists(s) ) { download.file(theurl,s, mode="wb") }
+    s
+}
+
+trainingDS <- 
+    downloadIfNeeded("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+testDS    <- 
+    downloadIfNeeded("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+
+
+```
+
+
+## Loading and preprocessing the data
+
+
+```{r Read and review the raw data}
+# Actually reading the data and converting to data.table
+trainingtbl<-tbl_df(read.csv(trainingDS, stringsAsFactors=FALSE))
+testtbl<-tbl_df(read.csv(testDS, stringsAsFactors=FALSE))
+
+```
+
+The naive cleaning strategy:
+
+ 1. Remove all columns with NAs
+ 
+ 2. Remove all incomplete rows
+
+In addition, all columns absent in test set should be removed 
+(however, the it happens anyway).
+
+
+```{r clean the data}
+
+exclCols <- c("X","raw_timestamp_part_1","raw_timestamp_part_2","num_window")
+
+
+goodNumCols <- function(df) {
+        goodCols<-unlist(lapply(df, function(x) all(!is.na(x) & is.numeric(x))))
+        goodNames<-colnames(df)[goodCols]
+        base::setdiff(x=goodNames,y=exclCols)  
+}
+
+trainDFWithUser<-trainingtbl[,c("classe","user_name",goodNumCols(trainingtbl))]
+                          
+# User_name only for the data review, will be excluded rightaway
+trainDFWithUser<-trainDFWithUser[complete.cases(trainDFWithUser),] 
+trainDFWithUser$classe <- as.factor(trainDFWithUser$classe)
+trainDFWithUser$user_name <- as.factor(trainDFWithUser$user_name)
+trainDF<-trainDFWithUser %>% select(-user_name) # Exclude user from features
+
+
+testDF<-testtbl[,intersect(colnames(testtbl),colnames(trainDF))]
+
+```
+
+## Evaluate training data quality: skewness of the classes
+
+```{r Review the contents of the data, results='asis'}
+
+t1<-xtabs(data=trainDFWithUser,~user_name+classe) # preview how balanced is the data
+t2<-xtabs(data=trainDF,~classe)
+print(xtable(t1),type="html")
+print(xtable(t2),type="html")
+
+```
+
+
+**Conclusion:** The data is well balanced, it is not skewed in any way  
+
+
+## Feature analysis: correlation
+The correlation analysis can establish whether dimensionality reduction is justified:
+```{r CorrelationAnalysis,results='asis'}
+
+trainDF.scale<- scale(trainDF[,-1], center=TRUE, scale=TRUE);
+M <- cor(trainDF.scale)
+diag(M)<-0
+naiveDimEstimation <- sqrt(length(which(abs(M)<0.1,arr.ind=T))/2)
+cat(sprintf("Low correlated entries  (rough estimation): %f", naiveDimEstimation))
+            
+```
+The correlation plot:
+```{r Correlation plot, results='asis', fig.cap="Correlation plot", fig.height=9, fig.width=9}
+
+corrplot(M)
+
+```
+
+**Conclusion:** There are some correlated features, mainly trelated to the same sensor, but the correlation between the groups is not too strong.
+
+If the classifier can handle this data, the effort of dimensionality reduction is probably is not justified here.
+
+
+## Training the classifier 
+
+
+The selected classifier: random forest.
+This classifier does not require feature normalization and less sensitive to feature pre-processing:
+```{r Rough attempt to classify,results='asis'}
+
+
+library(caret)
+set.seed(3233)
+
+inTrain     <-createDataPartition(trainDF$classe, p = 0.7)[[1]]
+training    <- trainDF[ inTrain,]
+training.cv <- trainDF[-inTrain,]
+
+
+model.rf<-randomForest(classe~.,data = training,ntree=150, importance=TRUE)
+
+model.rf
+
+
+
+
+```
+
+** Performance on training set: **
+
+```{r results='asis'}
+
+classAccuracy <- function(t) sum(diag(t))/sum(t)
+misclassError <- function(t) 1-classAccuracy(t)
+
+
+pred.trainrf <- predict(model.rf,newdata=training)
+confusion.train<-table(pred.trainrf,training$classe)
+xprint(confusion.train)
+cat(sprintf("Train accuracy: %.2f", classAccuracy(confusion.train)))
+
+```
+
+
+**Features importance review: top 10:** 
+
+```{r results='asis'}
+imp<-data.frame(unlist(importance(model.rf,type = 2)))
+xprint(head(imp[order(-imp$MeanDecreaseGini),,drop=FALSE],10))
+
+
+```
+
+**Performance on cross-validation set:**
+
+```{r results='asis'}
+# Quality estimation
+mpredcv.rf <- predict(model.rf,newdata=training.cv)
+confusion.cv<-table(mpredcv.rf,training.cv$classe)
+xprint(confusion.cv)
+cat(sprintf("Cross-validation (test) accuracy: %.2f", classAccuracy(confusion.cv)))
+
+xprint(table(training.cv$classe,mpredcv.rf))
+
+```
+
+**Conclusion:** the expected out of sample performance is expected to be about 99%. 
+
+
+
+**Predict the classes on the testset (final result):**
+    
+```{r results='asis'}
+
+mpredtest.rf <- predict(model.rf,newdata=testDF)
+Class <- data.frame(mpredtest.rf)
+xprint(table(Class))
+
+```
+
+```{r results='asis',echo=FALSE}
+#colnames(result) <- c("Class")
+#xprint(result %>% group_by(Class) %>% summarise(Count=n()))
+
+```
+
+## Training on the whole training set for submission
+
+```{r results='asis'}
+
+answers <- as.vector(Class[,1])
+xprint(Class)
+
+
+modelFull.rf<-randomForest(classe~.,data = trainDF,ntree=150, importance=TRUE)
+
+#modelFull.rf
+
+mpredtest1.rf <- predict(model.rf,newdata=testDF)
+ClassFull <- data.frame(mpredtest1.rf)
+answers1 <- as.vector(Class[,1])
+xprint(ClassFull)
+
+
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+
+pml_write_files(answers1)
+
+```
+
+
+
