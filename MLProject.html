@@ -97,7 +97,7 @@ testDF&lt;-testtbl[,intersect(colnames(testtbl),colnames(trainDF))]</code></pre>
 t2&lt;-xtabs(data=trainDF,~classe)
 print(xtable(t1),type=&quot;html&quot;)</code></pre>
 <!-- html table generated in R 3.1.2 by xtable 1.7-4 package -->
-<!-- Sun Dec 21 01:51:31 2014 -->
+<!-- Sun Dec 21 22:25:12 2014 -->
 <table border="1">
 <tr> <th>  </th> <th> 
 A
@@ -192,7 +192,7 @@ pedro
 
 <pre class="r"><code>print(xtable(t2),type=&quot;html&quot;)</code></pre>
 <!-- html table generated in R 3.1.2 by xtable 1.7-4 package -->
-<!-- Sun Dec 21 01:51:31 2014 -->
+<!-- Sun Dec 21 22:25:12 2014 -->
 <table border="1">
 <tr> <th>  </th> <th> 
 classe
@@ -267,7 +267,7 @@ pred.trainrf &lt;- predict(model.rf,newdata=training)
 confusion.train&lt;-table(pred.trainrf,training$classe)
 xprint(confusion.train)</code></pre>
 <!-- html table generated in R 3.1.2 by xtable 1.7-4 package -->
-<!-- Sun Dec 21 01:51:54 2014 -->
+<!-- Sun Dec 21 22:25:35 2014 -->
 <table border="1">
 <tr> <th>  </th> <th> 
 A
@@ -347,13 +347,14 @@ E
 </td> </tr>
    </table>
 
-<pre class="r"><code>cat(sprintf(&quot;Train accuracy: %.2f&quot;, classAccuracy(confusion.train)))</code></pre>
-<p>Train accuracy: 1.00</p>
+<pre class="r"><code>cat(sprintf(&quot;Train accuracy=%.3f Missclass error=%.3f&quot;, 
+            classAccuracy(confusion.train),misclassError(confusion.train) ))</code></pre>
+<p>Train accuracy=1.000 Missclass error=0.000</p>
 <p><strong>Features importance review: top 10:</strong></p>
 <pre class="r"><code>imp&lt;-data.frame(unlist(importance(model.rf,type = 2)))
 xprint(head(imp[order(-imp$MeanDecreaseGini),,drop=FALSE],10))</code></pre>
 <!-- html table generated in R 3.1.2 by xtable 1.7-4 package -->
-<!-- Sun Dec 21 01:51:54 2014 -->
+<!-- Sun Dec 21 22:25:35 2014 -->
 <table border="1">
 <tr> <th>  </th> <th> 
 MeanDecreaseGini
@@ -416,7 +417,7 @@ mpredcv.rf &lt;- predict(model.rf,newdata=training.cv)
 confusion.cv&lt;-table(mpredcv.rf,training.cv$classe)
 xprint(confusion.cv)</code></pre>
 <!-- html table generated in R 3.1.2 by xtable 1.7-4 package -->
-<!-- Sun Dec 21 01:51:54 2014 -->
+<!-- Sun Dec 21 22:25:35 2014 -->
 <table border="1">
 <tr> <th>  </th> <th> 
 A
@@ -496,11 +497,12 @@ E
 </td> </tr>
    </table>
 
-<pre class="r"><code>cat(sprintf(&quot;Cross-validation (test) accuracy: %.2f&quot;, classAccuracy(confusion.cv)))</code></pre>
-<p>Cross-validation (test) accuracy: 0.99</p>
+<pre class="r"><code>cat(sprintf(&quot;Cross-validation (test) accuracy=%.3f Missclass error=%.3f&quot;, 
+            classAccuracy(confusion.cv),misclassError(confusion.cv) ))</code></pre>
+<p>Cross-validation (test) accuracy=0.994 Missclass error=0.006</p>
 <pre class="r"><code>xprint(table(training.cv$classe,mpredcv.rf))</code></pre>
 <!-- html table generated in R 3.1.2 by xtable 1.7-4 package -->
-<!-- Sun Dec 21 01:51:54 2014 -->
+<!-- Sun Dec 21 22:25:35 2014 -->
 <table border="1">
 <tr> <th>  </th> <th> 
 A
@@ -586,7 +588,7 @@ E
 Class &lt;- data.frame(mpredtest.rf)
 xprint(table(Class))</code></pre>
 <!-- html table generated in R 3.1.2 by xtable 1.7-4 package -->
-<!-- Sun Dec 21 01:51:54 2014 -->
+<!-- Sun Dec 21 22:25:35 2014 -->
 <table border="1">
 <tr> <th>  </th> <th> 
 Class
@@ -626,7 +628,7 @@ E
 <pre class="r"><code>answers &lt;- as.vector(Class[,1])
 xprint(Class)</code></pre>
 <!-- html table generated in R 3.1.2 by xtable 1.7-4 package -->
-<!-- Sun Dec 21 01:51:54 2014 -->
+<!-- Sun Dec 21 22:25:35 2014 -->
 <table border="1">
 <tr> <th>  </th> <th> 
 mpredtest.rf
@@ -742,7 +744,7 @@ ClassFull &lt;- data.frame(mpredtest1.rf)
 answers1 &lt;- as.vector(Class[,1])
 xprint(ClassFull)</code></pre>
 <!-- html table generated in R 3.1.2 by xtable 1.7-4 package -->
-<!-- Sun Dec 21 01:52:27 2014 -->
+<!-- Sun Dec 21 22:26:08 2014 -->
 <table border="1">
 <tr> <th>  </th> <th> 
 mpredtest1.rf

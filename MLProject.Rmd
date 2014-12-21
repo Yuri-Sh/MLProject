@@ -168,7 +168,8 @@ misclassError <- function(t) 1-classAccuracy(t)
 pred.trainrf <- predict(model.rf,newdata=training)
 confusion.train<-table(pred.trainrf,training$classe)
 xprint(confusion.train)
-cat(sprintf("Train accuracy: %.2f", classAccuracy(confusion.train)))
+cat(sprintf("Train accuracy=%.3f Missclass error=%.3f", 
+            classAccuracy(confusion.train),misclassError(confusion.train) ))
 
 ```
 
@@ -189,7 +190,8 @@ xprint(head(imp[order(-imp$MeanDecreaseGini),,drop=FALSE],10))
 mpredcv.rf <- predict(model.rf,newdata=training.cv)
 confusion.cv<-table(mpredcv.rf,training.cv$classe)
 xprint(confusion.cv)
-cat(sprintf("Cross-validation (test) accuracy: %.2f", classAccuracy(confusion.cv)))
+cat(sprintf("Cross-validation (test) accuracy=%.3f Missclass error=%.3f", 
+            classAccuracy(confusion.cv),misclassError(confusion.cv) ))
 
 xprint(table(training.cv$classe,mpredcv.rf))
 
